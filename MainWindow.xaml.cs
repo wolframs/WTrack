@@ -104,6 +104,9 @@ namespace WTrack
             statusState!.IsEndTrackingEnabled = false;
         }
 
+        /// <summary>
+        /// If our sender is a DataGridCell, we check whether to open the explorer to a certain file location.
+        /// </summary>
         private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var dataGridCell = sender as DataGridCell;
