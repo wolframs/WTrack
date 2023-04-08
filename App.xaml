@@ -8,16 +8,16 @@
         <ResourceDictionary>
 
             <ResourceDictionary.MergedDictionaries>
-                <ui:ThemeResources />
+                <ui:ThemeResources RequestedTheme="Light">
+                </ui:ThemeResources>
                 <ui:XamlControlsResources />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- NotifyIcon TaskbarIcon -->
-            <tb:TaskbarIcon 
-            x:Key="NotifyIcon" 
-            IconSource="pack://application:,,,/icon.ico" 
-            ToolTipText="My Activity Tracker"
-            TrayMouseDoubleClick="NotifyIcon_TrayMouseDoubleClick">
+            <tb:TaskbarIcon x:Key="NotifyIcon"
+                            IconSource="pack://application:,,,/icon.ico" 
+                            ToolTipText="My Activity Tracker"
+                            TrayMouseDoubleClick="NotifyIcon_TrayMouseDoubleClick">
                 <tb:TaskbarIcon.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Open" Click="MenuItem_Open_Click" />

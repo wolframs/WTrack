@@ -1,7 +1,6 @@
 ﻿#nullable enable
 
 using System.Diagnostics;
-using System.Drawing;
 using System.Text;
 using System.Runtime.InteropServices;
 using Microsoft.Data.Sqlite;
@@ -11,7 +10,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Web;
 using System.Windows;
-using System.Windows.Controls;
 
 namespace WTrack.Tracking
 {
@@ -99,7 +97,9 @@ namespace WTrack.Tracking
 
                 while (readerProgram.Read())
                 {
-                    durationByProgram.Add(readerProgram.GetString(0), readerProgram.GetDouble(1));
+                    string title = readerProgram.IsDBNull(0) ? "NULL" : readerProgram.GetString(0);
+                    double duration = readerProgram.IsDBNull(1) ? 0.0 : readerProgram.GetDouble(1);
+                    durationByProgram.Add(title, duration);
                 }
 
                 // Query the database for the sum of durations by Window Title
@@ -109,21 +109,25 @@ namespace WTrack.Tracking
 
                 while (readerTitle.Read())
                 {
-                    durationByWindowTitle.Add(readerTitle.GetString(0), readerTitle.GetDouble(1));
+                    string title = readerTitle.IsDBNull(0) ? "NULL" : readerTitle.GetString(0);
+                    double duration = readerTitle.IsDBNull(1) ? 0.0 : readerTitle.GetDouble(1);
+                    durationByWindowTitle.Add(title, duration);
                 }
 
                 await GenerateHtmlOutput(dbFilePath, GetHTMLOutputFilePath(), durationByProgram, durationByWindowTitle);
             }
         }
 
-        private string GetAppFolderPathSection() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"WindowTracker\");
+        private string GetAppFolderPathSection() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"WindowTracker\");
 
-        private string GetDbFilePath() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), $"{GetAppFolderPathSection()}WindowLog.db");
+        private string GetDbFilePath() => Path.Combine(GetAppFolderPathSection(), "WindowLog.db");
 
-        private string GetHTMLOutputFilePath() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), $"{GetAppFolderPathSection()}WindowLog.html");
+        private string GetHTMLOutputFilePath() => Path.Combine(GetAppFolderPathSection(), "WindowLog.html");
 
         private void InitializeDatabase(string dbFilePath)
         {
+            CreateWindowTrackerFolder();
+
             using (var connection = new SqliteConnection($"Data Source={dbFilePath}"))
             {
                 connection.Open();
@@ -136,6 +140,14 @@ namespace WTrack.Tracking
             }
         }
 
+        private void CreateWindowTrackerFolder()
+        {
+            if (!Directory.Exists(GetAppFolderPathSection()))
+            {
+                Directory.CreateDirectory(GetAppFolderPathSection());
+            }
+        }
+
         private void LogWindowActivity(string dbFilePath, DateTime timestamp, string program, string title, TimeSpan? duration)
         {
             using (var connection = new SqliteConnection($"Data Source={dbFilePath}"))
@@ -145,13 +157,13 @@ namespace WTrack.Tracking
                 // Save the duration in the database
                 if (duration.HasValue)
                 {
-                    using (var cmd = new SqliteCommand("INSERT INTO window_log (date, time, program, title, duration) VALUES (@date, @time, @program, @title, @duration)", connection))
+                    using (var cmd = new SqliteCommand("INSERT INTO window_log (date, time, program, title, duration) VALUES (@date, @time, @program, @title, COALESCE(@duration, 0))", connection))
                     {
                         cmd.Parameters.AddWithValue("@date", timestamp.ToShortDateString());
                         cmd.Parameters.AddWithValue("@time", timestamp.ToLongTimeString());
                         cmd.Parameters.AddWithValue("@program", program);
                         cmd.Parameters.AddWithValue("@title", title);
-                        cmd.Parameters.AddWithValue("@duration", duration.Value.TotalSeconds); // Store duration in seconds
+                        cmd.Parameters.AddWithValue("@duration", duration?.TotalSeconds); // Store duration in seconds
                         cmd.ExecuteNonQuery();
                     }
                 }

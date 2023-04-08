@@ -1,6 +1,8 @@
 ﻿#nullable enable
 
 using Hardcodet.Wpf.TaskbarNotification;
+using ModernWpf;
+using ModernWpf.Controls;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -131,5 +133,20 @@ namespace WTrack
             }
         }
 
+        private void ThemeSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            ToggleSwitch? themeSwitch = sender as ToggleSwitch;
+            if (themeSwitch != null) 
+            {
+                if (themeSwitch.IsOn == true)
+                {
+                    ThemeManager.Current.ApplicationTheme = ApplicationTheme.Dark;
+                }
+                else
+                {
+                    ThemeManager.Current.ApplicationTheme = ApplicationTheme.Light;
+                }
+            }
+        }
     }
 }

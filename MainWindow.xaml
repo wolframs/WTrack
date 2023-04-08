@@ -10,7 +10,10 @@
         StateChanged="Window_StateChanged"
         Loaded="Window_Loaded"
         xmlns:ui="http://schemas.modernwpf.com/2019"
-        ui:WindowHelper.UseModernWindowStyle="False">
+        ui:WindowHelper.UseModernWindowStyle="False"
+        Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+        Foreground="{DynamicResource SystemControlPageTextBaseHighBrush}"
+        ui:ThemeManager.IsThemeAware="True">
     <ui:SimpleStackPanel Margin="12" Spacing="8">
 
         <TextBlock Text="Fensteraktivitätserfassung" Style="{StaticResource TitleTextBlockStyle}" />
@@ -64,8 +67,8 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Text="Einstellungen" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}" Visibility="Collapsed"/>
-        <Grid Visibility="Collapsed">
+        <TextBlock Text="Einstellungen" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}"/>
+        <Grid Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -74,7 +77,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <ui:ToggleSwitch Grid.Column="0" Grid.Row="0" Header="Dunkles Theme"/>
+            <ui:ToggleSwitch Grid.Column="0" Grid.Row="0" Header="Dunkles Design" Toggled="ThemeSwitch_Toggled"/>
         </Grid>
 
     </ui:SimpleStackPanel>
