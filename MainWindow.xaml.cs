@@ -19,6 +19,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Windows.UI.Popups;
 using WinRT;
 using WTrack.Tracking;
@@ -33,15 +34,22 @@ namespace WTrack
         private Tracker? tracker = null;
         private StatusState? statusState = null;
 
+        /// <summary> Handles the input in the Polling Rate TextBox. See <see cref="PollingIntervalValidationTimer_Tick(object, EventArgs)">IntervalValidationTimer_Tick()</see></summary>.
+        private DispatcherTimer intervalInputValidationTimer = new DispatcherTimer();
+        private bool isIntervalTextBoxInputValid = true;
+
         public MainWindow()
         {
             InitializeComponent();
 
-            DataContext = new StatusState(FindName("StatusText") as TextBlock);
+            DataContext = new StatusState(StatusTextBlock);
 
             statusState = DataContext.As<StatusState>();
 
             Loaded += OnMainWindowLoaded;
+
+            intervalInputValidationTimer.Interval = TimeSpan.FromMilliseconds(700);
+            intervalInputValidationTimer.Tick += PollingIntervalValidationTimer_Tick;
         }
 
         private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
@@ -79,14 +87,22 @@ namespace WTrack
         {
             if (tracker == null)
             {
-                tracker = new(statusState!);
+                if (int.TryParse(PollingIntervalTextBox.Text, out int pollingInterval))
+                {
+                    // Instantiate Tracker
+                    tracker = new(statusState!, pollingInterval);
+                }
+                else
+                {
+                    MessageBox.Show($"\"{PollingIntervalTextBox.Text}\" ist kein gültiger Wert für einen Abfrageintervall in Millisekunden.", "Korrektur erforderlich", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                    return;
+                }
             }
 
-            // Disable the start button and enable the stop button
             statusState!.IsStartTrackingEnabled = false;
             statusState!.IsEndTrackingEnabled = true;
 
-            tracker!.keepRunning = true;
+            tracker!.KeepRunning = true;
 
             Task.Run(async () =>
             {
@@ -98,12 +114,76 @@ namespace WTrack
         {
             if (tracker != null)
             {
-                tracker.keepRunning = false;
+                tracker.KeepRunning = false;
             }
 
-            // Disable the stop button and enable the start button
             statusState!.IsStartTrackingEnabled = true;
             statusState!.IsEndTrackingEnabled = false;
+        }
+
+        private void IntervalTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (!int.TryParse(e.Text, out int value))
+            {
+                e.Handled = true; // discard the input if it's not an integer
+                isIntervalTextBoxInputValid = false;
+            }
+            else
+            {
+                isIntervalTextBoxInputValid = true;
+            }
+        }
+
+        private void PollingIntervalTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!isIntervalTextBoxInputValid)
+                return;
+
+            intervalInputValidationTimer.Stop();
+            intervalInputValidationTimer.Start();
+        }
+
+        private void PollingIntervalValidationTimer_Tick(object sender, EventArgs e)
+        {
+            intervalInputValidationTimer.Stop();
+
+            if (int.TryParse(PollingIntervalTextBox.Text, out int value))
+            {
+                if (value < 10 || value > 2000)
+                {
+                    new Action(async () =>
+                    {
+                        ShowPollingIntervalToolTip();
+                        await Task.Delay(TimeSpan.FromSeconds(4));
+                        HidePollingIntervalToolTip();
+                    })();
+                }
+
+                value = Math.Clamp(value, 10, 2000);
+
+                PollingIntervalTextBox.Text = value.ToString();
+                statusState!.OnPropertyChanged(nameof(tracker.PollingInterval));    // notify ui of changed value
+
+                if (tracker != null)
+                    tracker!.PollingInterval = value;
+            }
+        }
+
+
+
+        private void ShowPollingIntervalToolTip()
+        {
+            PollingIntervalToolTip.IsOpen = true;
+        }
+
+        private void HidePollingIntervalToolTip()
+        {
+            PollingIntervalToolTip.IsOpen = false;
+        }
+
+        private void PollingIntervalTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            HidePollingIntervalToolTip();
         }
 
         /// <summary>
@@ -126,8 +206,9 @@ namespace WTrack
                         }
                     }
                 }
-                catch (Exception error) { 
-                    DataContext.As<StatusState>().UpdateStatusText(error.Message); 
+                catch (Exception error)
+                {
+                    DataContext.As<StatusState>().UpdateStatusText(error.Message);
                 }
 
             }
@@ -136,7 +217,7 @@ namespace WTrack
         private void ThemeSwitch_Toggled(object sender, RoutedEventArgs e)
         {
             ToggleSwitch? themeSwitch = sender as ToggleSwitch;
-            if (themeSwitch != null) 
+            if (themeSwitch != null)
             {
                 if (themeSwitch.IsOn == true)
                 {

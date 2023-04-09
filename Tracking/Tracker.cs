@@ -15,15 +15,16 @@ namespace WTrack.Tracking
 {
     class Tracker
     {
-        public Tracker(StatusState statusLogger)
+        public Tracker(StatusState statusLogger, int pollingInterval)
         {
             this._statusLogger = statusLogger;
+            this.PollingInterval = pollingInterval;
         }
 
         private readonly StatusState _statusLogger;
 
-        public bool keepRunning = false;
-        public int pollingInterval = 500;
+        public bool KeepRunning = false;
+        public int PollingInterval = 500;
 
         public async Task Log()
         {
@@ -40,7 +41,7 @@ namespace WTrack.Tracking
 
                 UpdateStatusText("Erfassung gestartet...");
 
-                while (keepRunning)
+                while (KeepRunning)
                 {
                     IntPtr hWnd = GetForegroundWindowHandle();
                     string title = GetWindowTitle(hWnd);
@@ -64,7 +65,7 @@ namespace WTrack.Tracking
                         lastWindowTitle = title;
                     }
 
-                    await Task.Delay(pollingInterval);
+                    await Task.Delay(PollingInterval);
                 }
 
                 UpdateStatusText("Verlasse Erfassungsschleife...");

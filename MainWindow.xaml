@@ -9,7 +9,8 @@
         Icon="pack://application:,,,/icon.ico"
         StateChanged="Window_StateChanged"
         Loaded="Window_Loaded"
-        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:ui="http://schemas.modernwpf.com/2019" 
+        d:DataContext="{d:DesignInstance Type=local:StatusState}"
         ui:WindowHelper.UseModernWindowStyle="False"
         Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
         Foreground="{DynamicResource SystemControlPageTextBaseHighBrush}"
@@ -32,6 +33,34 @@
             <Button Name="StopTrackingBtn" Grid.Column="1" Grid.Row="0" Content="Erfassung beenden" IsCancel="true" Click="EndTracking" Style="{StaticResource AccentButtonStyle}" Margin="12,0,0,0" IsEnabled="{Binding IsEndTrackingEnabled}"/>
         </Grid>
 
+        <!-- Settings -->
+        <TextBlock Text="Einstellungen" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
+        <Grid Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <ui:ToggleSwitch Grid.Column="0" Grid.Row="0" Header="Dunkles Design" Toggled="ThemeSwitch_Toggled"/>
+            <ui:SimpleStackPanel Grid.Column="1" Grid.Row="0">
+                <TextBlock Text="Abfrageintervall (ms)" />
+                <TextBox Name="PollingIntervalTextBox"
+                         Text="{Binding Path=PollingInterval, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         PreviewTextInput="IntervalTextBox_PreviewTextInput"
+                         TextChanged="PollingIntervalTextBox_TextChanged"
+                         LostFocus="PollingIntervalTextBox_LostFocus">
+                    <TextBox.ToolTip>
+                        <ToolTip x:Name="PollingIntervalToolTip"
+                                 Content="Der Abfrageintervall muss eine Zahl zwischen 10 und 2000 sein. Je niedriger der Wert, desto höher die Erfassungsgenauigkeit. Erhöhen Sie den Wert nur, wenn die Abfragen zu Leistungseinbußen führen." />
+                    </TextBox.ToolTip>
+                </TextBox>
+            </ui:SimpleStackPanel>
+            
+        </Grid>
+
         <!-- Current Status -->
         <TextBlock Text="Status" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
         <Grid>
@@ -42,7 +71,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="1" Grid.Row="0" Name="StatusText" Text="Erfassung wurde noch nicht gestartet." FontSize="12" Foreground="#FF6F6F6F"/>
+            <TextBlock Grid.Column="1" Grid.Row="0" Name="StatusTextBlock" Text="Erfassung wurde noch nicht gestartet." FontSize="12" Foreground="#FF6F6F6F"/>
         </Grid>
 
         <!-- Status Log -->
@@ -66,19 +95,6 @@
                 </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
-
-        <TextBlock Text="Einstellungen" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}"/>
-        <Grid Margin="0,4,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <ui:ToggleSwitch Grid.Column="0" Grid.Row="0" Header="Dunkles Design" Toggled="ThemeSwitch_Toggled"/>
-        </Grid>
 
     </ui:SimpleStackPanel>
 </Window>

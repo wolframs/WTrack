@@ -48,9 +48,20 @@ namespace WTrack
             }
         }
 
-        public void SetOutputHtmlFilePath(string filePath) => this.outputHtmlFilePath = filePath;
+        private int _pollingInterval = 25;
+        public int PollingInterval
+        {
+            get { return _pollingInterval; }
+            set
+            {
+                _pollingInterval = value;
+                OnPropertyChanged(nameof(PollingInterval));
+            }
+        }
 
         public static ObservableCollection<StatusLogEntry> logEntries = new();
+
+        public void SetOutputHtmlFilePath(string filePath) => this.outputHtmlFilePath = filePath;
 
         public async void UpdateStatusText(string statusTextString)
         {
@@ -71,7 +82,7 @@ namespace WTrack
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private void OnPropertyChanged(string propertyName)
+        public void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
