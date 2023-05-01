@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,11 +21,20 @@ namespace WTrack
 
         private string? outputHtmlFilePath;
 
+        public string GetAppFolderPathSection() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"WindowTracker\");
+
+        public string GetDbFilePath() => Path.Combine(GetAppFolderPathSection(), "WindowLog.db");
+
+        public string GetHTMLOutputFilePath() => Path.Combine(GetAppFolderPathSection(), "WindowLog.html");
+
         private TextBlock _statusText;
+
         private int loggingIndexCounter = 1;
 
         private bool _isStartTrackingEnabled = true;
+        
         private bool _isEndTrackingEnabled = false;
+
         public bool IsStartTrackingEnabled {
             get { return _isStartTrackingEnabled; }
             set
@@ -36,6 +46,7 @@ namespace WTrack
                 }
             }
         }
+
         public bool IsEndTrackingEnabled {
             get { return _isEndTrackingEnabled; }
             set
@@ -49,6 +60,7 @@ namespace WTrack
         }
 
         private int _pollingInterval = 25;
+
         public int PollingInterval
         {
             get { return _pollingInterval; }

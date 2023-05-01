@@ -10,23 +10,51 @@ using System.Collections.Generic;
 using System.IO;
 using System.Web;
 using System.Windows;
+using System.Drawing;
 
 namespace WTrack.Tracking
 {
     class Tracker
     {
+        private readonly StatusState statusState;
+
+        public bool KeepRunning = false;
+        public int PollingInterval = 10;
+
+        private Task? loggingTask = null;
+
         public Tracker(StatusState statusLogger, int pollingInterval)
         {
-            this._statusLogger = statusLogger;
+            this.statusState = statusLogger;
             this.PollingInterval = pollingInterval;
         }
 
-        private readonly StatusState _statusLogger;
+        private string GetAppFolderPathSection() => statusState.GetAppFolderPathSection();
 
-        public bool KeepRunning = false;
-        public int PollingInterval = 500;
+        private string GetDbFilePath() => statusState.GetDbFilePath();
 
-        public async Task Log()
+        private string GetHTMLOutputFilePath() => statusState.GetHTMLOutputFilePath();
+
+        public void StartTracking()
+        {
+            KeepRunning = true;
+
+            statusState!.IsStartTrackingEnabled = false;
+            statusState!.IsEndTrackingEnabled = true;
+            
+            loggingTask = Task.Run(LogLoop);
+        }
+
+        public void EndTracking()
+        {
+            KeepRunning = false;
+
+            statusState!.IsStartTrackingEnabled = true;
+            statusState!.IsEndTrackingEnabled = false;
+        }
+
+
+        public async Task LogLoop()
         {
             try
             {
@@ -37,7 +65,7 @@ namespace WTrack.Tracking
 
                 InitializeDatabase(dbFilePath);
 
-                _statusLogger.SetOutputHtmlFilePath(GetHTMLOutputFilePath());
+                statusState.SetOutputHtmlFilePath(GetHTMLOutputFilePath());
 
                 UpdateStatusText("Erfassung gestartet...");
 
@@ -49,6 +77,10 @@ namespace WTrack.Tracking
                     {
                         DateTime now = DateTime.Now;
                         string program = GetProgramName(hWnd);
+                        byte[] iconData = GetWindowIconAsByteArray(hWnd);
+
+                        // Check if the icon exists in the database and add it if it doesn't
+                        AddIconToDatabaseIfNotExists(dbFilePath, title, iconData);
 
                         // Calculate duration of the previous window's activity, if applicable
                         TimeSpan? duration = null;
@@ -81,7 +113,7 @@ namespace WTrack.Tracking
 
         private void UpdateStatusText(string statusTextString)
         {
-            _statusLogger.UpdateStatusText(statusTextString);
+            statusState.UpdateStatusText(statusTextString);
         }
 
         private async Task WriteOutput(string dbFilePath)
@@ -119,12 +151,6 @@ namespace WTrack.Tracking
             }
         }
 
-        private string GetAppFolderPathSection() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"WindowTracker\");
-
-        private string GetDbFilePath() => Path.Combine(GetAppFolderPathSection(), "WindowLog.db");
-
-        private string GetHTMLOutputFilePath() => Path.Combine(GetAppFolderPathSection(), "WindowLog.html");
-
         private void InitializeDatabase(string dbFilePath)
         {
             CreateWindowTrackerFolder();
@@ -133,8 +159,14 @@ namespace WTrack.Tracking
             {
                 connection.Open();
 
-                string createTableQuery = "CREATE TABLE IF NOT EXISTS window_log (id INTEGER PRIMARY KEY, date TEXT, time TEXT, program TEXT, title TEXT, duration REAL)";
-                using (var command = new SqliteCommand(createTableQuery, connection))
+                string createWindowLogTableQuery = "CREATE TABLE IF NOT EXISTS window_log (id INTEGER PRIMARY KEY, date TEXT, time TEXT, program TEXT, title TEXT, duration REAL)";
+                using (var command = new SqliteCommand(createWindowLogTableQuery, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+                string createIconTableQuery = "CREATE TABLE IF NOT EXISTS icons (id INTEGER PRIMARY KEY, title TEXT, icon_data BLOB)";
+                using (var command = new SqliteCommand(createIconTableQuery, connection))
                 {
                     command.ExecuteNonQuery();
                 }
@@ -200,11 +232,151 @@ namespace WTrack.Tracking
             return title.Contains(',') ? $"\"{title}\"" : title;
         }
 
-        private string GetProgramName(IntPtr hWnd)
+        private static string GetProgramName(IntPtr hWnd)
         {
             NativeMethods.GetWindowThreadProcessId(hWnd, out uint processId);
             Process process = Process.GetProcessById((int)processId);
             return process.ProcessName;
+        }
+
+        private static byte[]? GetWindowIconAsByteArray(IntPtr hWnd)
+        {
+            try
+            {
+                IntPtr hIcon = NativeMethods.SendMessage(hWnd, NativeMethods.WM_GETICON, NativeMethods.ICON_SMALL2, IntPtr.Zero);
+                if (hIcon == IntPtr.Zero)
+                    hIcon = NativeMethods.SendMessage(hWnd, NativeMethods.WM_GETICON, NativeMethods.ICON_SMALL, IntPtr.Zero);
+                if (hIcon == IntPtr.Zero)
+                    hIcon = NativeMethods.SendMessage(hWnd, NativeMethods.WM_GETICON, NativeMethods.ICON_BIG, IntPtr.Zero);
+                if (hIcon == IntPtr.Zero)
+                    hIcon = NativeMethods.GetClassLongPtr(hWnd, NativeMethods.GCL_HICON);
+                if (hIcon == IntPtr.Zero)
+                    hIcon = NativeMethods.GetClassLongPtr(hWnd, NativeMethods.GCL_HICONSM);
+
+                if (hIcon != IntPtr.Zero)
+                {
+                    using (Icon icon = Icon.FromHandle(hIcon))
+                    {
+                        using (MemoryStream ms = new())
+                        {
+                            icon.Save(ms);
+                            return ms.ToArray();
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private static void AddIconToDatabaseIfNotExists(string dbFilePath, string title, byte[] iconData)
+        {
+            if (iconData == null)
+            {
+                return;
+            }
+
+            using SqliteConnection connection = new SqliteConnection($"Data Source={dbFilePath};");
+            connection.Open();
+
+            // Check if the icon exists in the database
+            using (SqliteCommand cmdExists = new SqliteCommand("SELECT COUNT(*) FROM icons WHERE title = @title;", connection))
+            {
+                cmdExists.Parameters.AddWithValue("@title", title);
+                long count = (long)cmdExists.ExecuteScalar();
+
+                if (count == 0)
+                {
+                    // Insert the icon into the database
+                    using (SqliteCommand cmdInsert = new SqliteCommand("INSERT INTO icons (title, icon_data) VALUES (@title, @icon_data);", connection))
+                    {
+                        cmdInsert.Parameters.AddWithValue("@title", title);
+                        cmdInsert.Parameters.AddWithValue("@icon_data", iconData);
+                        cmdInsert.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Generates sample data for testing, if enabled.
+        /// </summary>
+        /// <param name="enabled">Fills the window_log table with sample data.</param>
+        /// <param name="flushLogTable">Flushes the window_log table. The flush is executed before filling with new data, but can also be used independently.</param>
+        /// <returns></returns>
+        public async Task PopulateSampleDataAsync(bool enabled, bool flushLogTable)
+        {
+            if (!enabled && !flushLogTable)
+                return;
+
+            Random random = new Random();
+            string[] programs = { "Program A", "Program B", "Program C", "Program D", "Program E" };
+            string[] titles = { "Title 1", "Title 2", "Title 3", "Title 4", "Title 5" };
+
+            // Prepare the start date and time
+            DateTime startDate = DateTime.Today.AddDays(-2);
+            DateTime startTime = startDate.AddHours(8);
+
+            var connection = new SqliteConnection($"Data Source={GetDbFilePath()}");
+
+            await connection.OpenAsync();
+            using (var transaction = await connection.BeginTransactionAsync())
+            {
+                if (flushLogTable) {
+                    // Clear the existing data in the table
+                    using (var deleteCommand = new SqliteCommand("DELETE FROM window_log;", connection))
+                    {
+                        deleteCommand.Transaction = (SqliteTransaction?)transaction;
+                        await deleteCommand.ExecuteNonQueryAsync();
+                    }
+                }
+                
+                if (enabled)
+                {
+                    int entryId = 1;
+
+                    for (int day = 0; day < 3; day++)
+                    {
+                        double totalDuration = 0;
+                        DateTime currentTime = startTime;
+
+                        while (totalDuration < 8 * 60 * 60) // 8 hours in seconds
+                        {
+                            string program = programs[random.Next(programs.Length)];
+                            string title = titles[random.Next(titles.Length)];
+
+                            double power = 7; // Adjust this value to control how much the durations skew towards smaller numbers
+                            double randomValue = Math.Pow(random.NextDouble(), power);
+                            double duration = randomValue * (1200 - 0.01) + 0.01; // Random duration between 0.01 and 1200 seconds
+
+                            // Add the entry to the table
+                            using (var insertCommand = new SqliteCommand("INSERT INTO window_log (id, date, time, program, title, duration) VALUES (@id, @date, @time, @program, @title, @duration);", connection))
+                            {
+                                insertCommand.Transaction = (SqliteTransaction?)transaction;
+                                insertCommand.Parameters.AddWithValue("@id", entryId++);
+                                insertCommand.Parameters.AddWithValue("@date", currentTime.ToString("yyyy-MM-dd"));
+                                insertCommand.Parameters.AddWithValue("@time", currentTime.ToString("HH:mm:ss"));
+                                insertCommand.Parameters.AddWithValue("@program", program);
+                                insertCommand.Parameters.AddWithValue("@title", title);
+                                insertCommand.Parameters.AddWithValue("@duration", duration);
+
+                                await insertCommand.ExecuteNonQueryAsync();
+                            }
+
+                            currentTime = currentTime.AddSeconds(duration);
+                            totalDuration += duration;
+                        }
+
+                        // Increment the start time by a day for the next iteration
+                        startTime = startTime.AddDays(1);
+                    }
+                }
+
+                await transaction.CommitAsync();
+            }
+
+            connection.Close();
         }
 
 
@@ -391,6 +563,30 @@ namespace WTrack.Tracking
             [DllImport("user32.dll")]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, int wParam, IntPtr lParam);
+
+            [DllImport("user32.dll", EntryPoint = "GetClassLong")]
+            public static extern uint GetClassLongPtr32(IntPtr hWnd, int nIndex);
+
+            [DllImport("user32.dll", EntryPoint = "GetClassLongPtr")]
+            public static extern IntPtr GetClassLongPtr64(IntPtr hWnd, int nIndex);
+
+            public const int GCL_HICONSM = -34;
+            public const int GCL_HICON = -14;
+            public const uint WM_GETICON = 0x7F;
+            public const int ICON_SMALL = 0;
+            public const int ICON_BIG = 1;
+            public const int ICON_SMALL2 = 2;
+
+            public static IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex)
+            {
+                if (IntPtr.Size == 4)
+                    return new IntPtr(GetClassLongPtr32(hWnd, nIndex));
+                else
+                    return GetClassLongPtr64(hWnd, nIndex);
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using Windows.UI.Popups;
 using WinRT;
+using WTrack.Output;
 using WTrack.Tracking;
 
 namespace WTrack
@@ -99,26 +100,47 @@ namespace WTrack
                 }
             }
 
-            statusState!.IsStartTrackingEnabled = false;
-            statusState!.IsEndTrackingEnabled = true;
-
-            tracker!.KeepRunning = true;
-
-            Task.Run(async () =>
-            {
-                await tracker.Log();
-            });
+            tracker!.StartTracking();
         }
 
         private void EndTracking(object sender, EventArgs e)
         {
             if (tracker != null)
             {
-                tracker.KeepRunning = false;
+                tracker.EndTracking();
             }
+        }
 
-            statusState!.IsStartTrackingEnabled = true;
-            statusState!.IsEndTrackingEnabled = false;
+        /// <summary>
+        /// Can use sample data.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OpenDayOutputWindow(object sender, EventArgs e)
+        {
+            if (tracker == null)
+                tracker = new(statusState!, 10);
+
+            Task.Run(async () => await tracker.PopulateSampleDataAsync(true, true))
+                .ContinueWith(t =>
+                {
+                    // Check for any exceptions during the task execution
+                    if (t.Exception != null)
+                    {
+                        // Handle the exception (e.g., log the error, show a message box, etc.)
+                        MessageBox.Show(t.Exception.Message);
+                    }
+                    else
+                    {
+                        // Since we're updating the UI, we need to make sure we're running on the UI thread
+                        Dispatcher.Invoke(new Action(() =>
+                        {
+                            // Execute the rest of the OpenDayOutputWindow function
+                            DayOutputWindow outputWindow = new(statusState!);
+                            outputWindow.Show();
+                        }));
+                    }
+                });
         }
 
         private void IntervalTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)

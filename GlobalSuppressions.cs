@@ -6,3 +6,4 @@
 using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Ausstehend>", Scope = "member", Target = "~M:WTrack.MainWindow.#ctor")]
+[assembly: SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Ausstehend>", Scope = "member", Target = "~M:WTrack.MainWindow.OnMouseLeftButtonDown(System.Object,System.Windows.Input.MouseButtonEventArgs)")]
