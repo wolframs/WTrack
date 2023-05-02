@@ -243,6 +243,29 @@ namespace WTrack.Tracking
         {
             try
             {
+                uint processId;
+                NativeMethods.GetWindowThreadProcessId(hWnd, out processId);
+                var process = Process.GetProcessById((int)processId);
+
+                string exePath = process.MainModule.FileName;
+
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+                {
+                    using (Icon icon = Icon.ExtractAssociatedIcon(exePath))
+                    {
+                        if (icon != null)
+                        {
+                            using MemoryStream ms = new();
+                            icon.Save(ms);
+                            return ms.ToArray();
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
                 IntPtr hIcon = NativeMethods.SendMessage(hWnd, NativeMethods.WM_GETICON, NativeMethods.ICON_SMALL2, IntPtr.Zero);
                 if (hIcon == IntPtr.Zero)
                     hIcon = NativeMethods.SendMessage(hWnd, NativeMethods.WM_GETICON, NativeMethods.ICON_SMALL, IntPtr.Zero);
@@ -257,11 +280,9 @@ namespace WTrack.Tracking
                 {
                     using (Icon icon = Icon.FromHandle(hIcon))
                     {
-                        using (MemoryStream ms = new())
-                        {
-                            icon.Save(ms);
-                            return ms.ToArray();
-                        }
+                        using MemoryStream ms = new();
+                        icon.Save(ms);
+                        return ms.ToArray();
                     }
                 }
             }

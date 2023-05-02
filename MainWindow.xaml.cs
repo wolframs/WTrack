@@ -114,14 +114,12 @@ namespace WTrack
         /// <summary>
         /// Can use sample data.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void OpenDayOutputWindow(object sender, EventArgs e)
         {
             if (tracker == null)
                 tracker = new(statusState!, 10);
 
-            Task.Run(async () => await tracker.PopulateSampleDataAsync(true, true))
+            Task.Run(async () => await tracker.PopulateSampleDataAsync(false, false))
                 .ContinueWith(t =>
                 {
                     // Check for any exceptions during the task execution

@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -53,7 +54,7 @@ namespace WTrack.Output
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
 
-            using var command = new SqliteCommand("SELECT * FROM window_log WHERE duration >= @cutoff OR (CASE WHEN @cutoff = 0 THEN duration IS NULL ELSE 0 END)", connection);
+            using var command = new SqliteCommand("SELECT w.*, i.icon_data FROM window_log w LEFT JOIN icons i ON w.title = i.title WHERE w.duration >= @cutoff OR (CASE WHEN @cutoff = 0 THEN w.duration IS NULL ELSE 0 END)", connection);
             command.Parameters.AddWithValue("@cutoff", durationCutoffS);
             using var reader = command.ExecuteReader();
 
@@ -78,6 +79,18 @@ namespace WTrack.Output
                     MaxRowHeight = Math.Max(MaxRowHeight, duration);
                 }
 
+                byte[]? iconData = reader["icon_data"] as byte[];
+                BitmapImage? icon = null;
+                if (iconData != null)
+                {
+                    using var stream = new MemoryStream(iconData);
+                    icon = new BitmapImage();
+                    icon.BeginInit();
+                    icon.CacheOption = BitmapCacheOption.OnLoad;
+                    icon.StreamSource = stream;
+                    icon.EndInit();
+                }
+
                 data.Add(new OutputDataItem { 
                     CombinedData = combinedData.ToString(),
                     Duration = duration,
@@ -85,7 +98,8 @@ namespace WTrack.Output
                     Date = reader["date"].ToString(),
                     Time = reader["time"].ToString(),
                     Program = reader["program"].ToString(),
-                    Title = reader["title"].ToString()
+                    Title = reader["title"].ToString(),
+                    Icon = icon
                 });
             }
             // Set the DataGrid's ItemsSource

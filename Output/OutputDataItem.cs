@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 
 namespace WTrack.Output
 {
@@ -16,7 +17,11 @@ namespace WTrack.Output
         public string Time { get; set; }
         public string Program { get; set; }
         public string Title { get; set; }
+        public BitmapImage Icon { get; set; }
 
+        /// <summary>
+        /// Used for deriving a row height, that scales according to an item's duration.
+        /// </summary>
         public double ScaledDuration
         {
             get
