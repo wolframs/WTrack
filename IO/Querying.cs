@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WTrack.Output
+namespace WTrack.IO
 {
-    class HTMLOutput
+    class Querying
     {
     }
 }

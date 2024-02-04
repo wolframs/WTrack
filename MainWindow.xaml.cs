@@ -22,7 +22,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using Windows.UI.Popups;
 using WinRT;
-using WTrack.Output;
+using WTrack.IO;
 using WTrack.Tracking;
 
 namespace WTrack

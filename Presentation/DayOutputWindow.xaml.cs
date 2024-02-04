@@ -18,7 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace WTrack.Output
+namespace WTrack.IO
 {
     /// <summary>
     /// Interaktionslogik für DayOutputWindow.xaml
